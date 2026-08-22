@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>First Light</title><style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#10152b;color:#fff;font-family:system-ui,sans-serif}.wrap{width:min(1000px,96vw)}h1{margin:.2rem 0;font-size:clamp(24px,4vw,44px)}p{margin:.3rem 0 1rem;color:#c9d4ff}canvas{width:100%;aspect-ratio:16/9;background:#78c9ff;border:4px solid #fff;border-radius:14px;box-shadow:0 20px 70px #0008;image-rendering:pixelated}.hint{text-align:center;font-size:14px;margin-top:10px}
+</style></head><body><main class="wrap"><h1>FIRST LIGHT</h1><p>Run. Jump. Collect the light. Reach the beacon.</p><canvas id="game" width="960" height="540"></canvas><div class="hint">Move: ← → or A D &nbsp; Jump: Space / W / ↑ &nbsp; Restart: R</div></main><script>
+const c=document.getElementById('game'),x=c.getContext('2d');
+const W=c.width,H=c.height,LEVEL=4300,keys={}; let cam=0,score=0,state='play';
+const player={x:90,y:350,w:34,h:46,vx:0,vy:0,on:false,spawnX:90,spawnY:350};
+const plats=[
+[0,440,720,100],[790,440,620,100],[1490,440,520,100],[2100,440,700,100],[2890,440,480,100],[3440,440,860,100],
+[330,350,150,24],[560,290,120,24],[930,340,150,24],[1190,270,120,24],[1570,330,160,24],[1810,260,120,24],[2210,340,150,24],[2470,280,130,24],[3010,330,140,24],[3220,250,130,24],[3610,330,160,24],[3880,270,130,24]
+].map(a=>({x:a[0],y:a[1],w:a[2],h:a[3]}));
+const stars=[[390,310],[610,250],[990,300],[1240,230],[1640,290],[1860,220],[2280,300],[2520,240],[3070,290],[3270,210],[3680,290],[3930,230]].map(([a,b])=>({x:a,y:b,taken:false}));
+const enemies=[850,1320,1690,2350,2710,3160,3710].map((a,i)=>({x:a,y:408,w:32,h:32,vx:i%2?1.1:-1.1,dead:false}));
+const goal={x:4170,y:300,w:34,h:140};
+addEventListener('keydown',e=>{keys[e.code]=true;if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(e.code))e.preventDefault();if(e.code==='KeyR')reset(true)});addEventListener('keyup',e=>keys[e.code]=false);
+function hit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
+function reset(full=false){player.x=player.spawnX;player.y=player.spawnY;player.vx=player.vy=0;cam=Math.max(0,player.x-250);state='play';if(full){score=0;stars.forEach(s=>s.taken=false);enemies.forEach((e,i)=>{e.dead=false;e.x=[850,1320,1690,2350,2710,3160,3710][i]})}}
+function update(){if(state!=='play')return;const left=keys.ArrowLeft||keys.KeyA,right=keys.ArrowRight||keys.KeyD,jump=keys.Space||keys.ArrowUp||keys.KeyW;
+if(left)player.vx-=.65;if(right)player.vx+=.65;player.vx*=.84;player.vx=Math.max(-6,Math.min(6,player.vx));if(jump&&player.on){player.vy=-12.8;player.on=false}player.vy=Math.min(15,player.vy+.62);
+player.x+=player.vx;player.x=Math.max(0,Math.min(LEVEL-player.w,player.x));
+for(const p of plats)if(hit(player,p)){if(player.vx>0)player.x=p.x-player.w;else if(player.vx<0)player.x=p.x+p.w;player.vx=0}
+const oldBottom=player.y+player.h;player.y+=player.vy;player.on=false;
+for(const p of plats)if(hit(player,p)){if(player.vy>=0&&oldBottom<=p.y+8){player.y=p.y-player.h;player.vy=0;player.on=true}else if(player.vy<0){player.y=p.y+p.h;player.vy=0}}
+if(player.y>H+160)reset(false);
+stars.forEach(s=>{if(!s.taken&&Math.hypot(player.x+17-s.x,player.y+20-s.y)<35){s.taken=true;score+=100}});
+enemies.forEach(e=>{if(e.dead)return;e.x+=e.vx;if(e.x<0||e.x>LEVEL-32)e.vx*=-1;for(const p of plats){const foot={x:e.x,y:e.y+e.h+2,w:e.w,h:3};if(hit(foot,p)){e.y=p.y-e.h;break}}if(hit(player,e)){if(player.vy>2&&player.y+player.h<e.y+18){e.dead=true;player.vy=-8;score+=250}else reset(false)}});
+if(hit(player,goal))state='win';cam+=(Math.max(0,Math.min(LEVEL-W,player.x-300))-cam)*.09}
+function rect(o,color){x.fillStyle=color;x.fillRect(Math.round(o.x-cam),o.y,o.w,o.h)}
+function draw(){x.clearRect(0,0,W,H);let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#65c7ff');g.addColorStop(1,'#d9f4ff');x.fillStyle=g;x.fillRect(0,0,W,H);
+// distant hills
+for(let i=0;i<12;i++){let hx=i*420-cam*.25;x.fillStyle='#9bd58a';x.beginPath();x.arc(hx,470,210,0,Math.PI*2);x.fill()}x.fillStyle='#fff';for(let i=0;i<8;i++){let cx=i*600-cam*.12;x.beginPath();x.arc(cx+120,95,32,0,7);x.arc(cx+155,88,42,0,7);x.arc(cx+195,100,28,0,7);x.fill()}
+plats.forEach(p=>{rect(p,'#7b4b2a');x.fillStyle='#55a84f';x.fillRect(p.x-cam,p.y,p.w,10)});
+stars.forEach(s=>{if(s.taken)return;let sx=s.x-cam,sy=s.y;x.save();x.translate(sx,sy);x.rotate(performance.now()/700);x.fillStyle='#ffe75b';x.beginPath();for(let i=0;i<10;i++){let r=i%2?7:16,a=-Math.PI/2+i*Math.PI/5;x.lineTo(Math.cos(a)*r,Math.sin(a)*r)}x.closePath();x.fill();x.restore()});
+enemies.forEach(e=>{if(e.dead)return;rect(e,'#6c3d83');x.fillStyle='#fff';x.fillRect(e.x-cam+6,e.y+7,6,6);x.fillRect(e.x-cam+20,e.y+7,6,6)});
+rect(goal,'#f5c542');x.fillStyle='#fff7a8';x.beginPath();x.arc(goal.x-cam+17,goal.y,30,0,7);x.fill();
+rect(player,'#263c86');x.fillStyle='#ffca73';x.fillRect(player.x-cam+6,player.y+5,22,17);x.fillStyle='#f05b4f';x.fillRect(player.x-cam+3,player.y,28,8);x.fillRect(player.x-cam+2,player.y+26,30,20);
+x.fillStyle='#10204b';x.font='bold 20px system-ui';x.fillText('LIGHT '+score,24,34);x.fillText('STARS '+stars.filter(s=>s.taken).length+'/'+stars.length,24,60);
+if(state==='win'){x.fillStyle='#08122dcc';x.fillRect(0,0,W,H);x.textAlign='center';x.fillStyle='#fff';x.font='bold 54px system-ui';x.fillText('FIRST LIGHT REACHED',W/2,220);x.font='24px system-ui';x.fillText('Score '+score+'  •  Press R to run again',W/2,270);x.textAlign='left'}}
+let last=0;function loop(t){const dt=Math.min(34,t-last);last=t;update(dt);draw();requestAnimationFrame(loop)}reset(true);requestAnimationFrame(loop);
+</script></body></html>
